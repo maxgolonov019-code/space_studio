@@ -1,10 +1,40 @@
 export default {
+  // Эта функция срабатывает, когда Telegram пишет боту
   async fetch(request, env, ctx) {
     if (request.method === "POST") {
       const update = await request.json();
       await handleUpdate(update, env.BOT_TOKEN);
     }
     return new Response("OK");
+  },
+
+  // Эта функция срабатывает по таймеру (каждую минуту)
+  async scheduled(event, env, ctx) {
+    await checkUpdates(env.BOT_TOKEN);
+  }
+}
+
+// Функция для получения сообщений (Long Polling)
+async function checkUpdates(token) {
+  const apiUrl = `https://api.telegram.org/bot${token}`;
+  let offset = 0;
+
+  while (true) {
+    try {
+      const res = await fetch(`${apiUrl}/getUpdates?offset=${offset}&timeout=5`);
+      const data = await res.json();
+
+      if (data.ok && data.result.length > 0) {
+        for (const update of data.result) {
+          offset = update.update_id + 1;
+          await handleUpdate(update, token);
+        }
+      } else {
+        break; // Если новых сообщений нет, выходим
+      }
+    } catch (e) {
+      break;
+    }
   }
 }
 
@@ -64,4 +94,4 @@ async function sendMessage(apiUrl, chatId, text, keyboard = null) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
   });
-}
+        }
